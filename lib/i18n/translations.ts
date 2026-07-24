@@ -98,7 +98,9 @@ const ko = {
     excelAutoProducts: " (신규 제품 {count}건 자동 등록)",
     excelUpdatedProducts: " (기존 제품 {count}건 unit_price·duty·tax·rate 업데이트)",
     excelDutyTaxOnRecordOnly:
-      " (products 테이블에 duty/tax 컬럼 없음 — PO 품목에만 duty/tax 저장됨)",
+      " (purchase_record에 duty/tax/rate 미저장 — Supabase migrations 실행 필요)",
+    excelRateNotStored:
+      " (DB에 rate 컬럼 없음 — rate 미저장. Supabase에서 add_rate.sql 실행 필요)",
     deleteItem: "품목 삭제",
   },
   history: {
@@ -221,7 +223,9 @@ const en = {
     excelAutoProducts: " ({count} new product(s) auto-registered)",
     excelUpdatedProducts: " ({count} existing product(s) updated: unit_price, duty, tax, rate)",
     excelDutyTaxOnRecordOnly:
-      " (products table has no duty/tax columns — duty/tax saved on PO lines only)",
+      " (duty/tax/rate not saved on purchase_record — run Supabase migrations)",
+    excelRateNotStored:
+      " (rate column missing in DB — rate not saved. Run add_rate.sql in Supabase)",
     deleteItem: "Delete item",
   },
   history: {

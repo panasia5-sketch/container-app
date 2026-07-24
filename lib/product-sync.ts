@@ -24,58 +24,78 @@ export function buildProductUpserts(
   }));
 }
 
-type ProductSyncResult = {
+export type ProductSyncResult = {
   newCount: number;
   updatedCount: number;
   dutyTaxStoredOnProduct: boolean;
+  rateStoredOnProduct: boolean;
 };
 
-export async function syncProductsFromExcel(
-  parsedRows: ParsedPurchaseExcelRow[],
-  existingIds: Set<string>,
-): Promise<ProductSyncResult> {
-  const upserts = buildProductUpserts(parsedRows);
-  const newCount = upserts.filter((p) => !existingIds.has(p.item_id)).length;
-  const updatedCount = upserts.length - newCount;
+type ProductPayload = {
+  item_id: string;
+  description: string;
+  packaging: string;
+  price: number;
+  duty?: number;
+  tax?: number;
+  rate?: number;
+};
 
-  const fullPayload = upserts.map((p) => ({
-    item_id: p.item_id,
-    description: p.description,
-    packaging: p.packaging,
-    price: p.price,
-    duty: p.duty ?? 0,
-    tax: p.tax ?? 0,
-    rate: p.rate ?? 0,
-  }));
-
-  const dutyTaxPayload = upserts.map((p) => ({
-    item_id: p.item_id,
-    description: p.description,
-    packaging: p.packaging,
-    price: p.price,
-    duty: p.duty ?? 0,
-    tax: p.tax ?? 0,
-  }));
-
-  const basicPayload = upserts.map((p) => ({
-    item_id: p.item_id,
-    description: p.description,
-    packaging: p.packaging,
-    price: p.price,
-  }));
-
-  const attempts = [fullPayload, dutyTaxPayload, basicPayload];
+async function upsertProductsWithFallback(
+  upserts: Product[],
+): Promise<{ dutyTaxStoredOnProduct: boolean; rateStoredOnProduct: boolean }> {
+  const attempts: Array<{
+    payload: ProductPayload[];
+    includesDutyTax: boolean;
+    includesRate: boolean;
+  }> = [
+    {
+      payload: upserts.map((p) => ({
+        item_id: p.item_id,
+        description: p.description,
+        packaging: p.packaging,
+        price: p.price,
+        duty: p.duty ?? 0,
+        tax: p.tax ?? 0,
+        rate: p.rate ?? 0,
+      })),
+      includesDutyTax: true,
+      includesRate: true,
+    },
+    {
+      payload: upserts.map((p) => ({
+        item_id: p.item_id,
+        description: p.description,
+        packaging: p.packaging,
+        price: p.price,
+        duty: p.duty ?? 0,
+        tax: p.tax ?? 0,
+      })),
+      includesDutyTax: true,
+      includesRate: false,
+    },
+    {
+      payload: upserts.map((p) => ({
+        item_id: p.item_id,
+        description: p.description,
+        packaging: p.packaging,
+        price: p.price,
+      })),
+      includesDutyTax: false,
+      includesRate: false,
+    },
+  ];
 
   for (let i = 0; i < attempts.length; i++) {
+    const attempt = attempts[i];
     const { error } = await supabase
       .from("products")
-      .upsert(attempts[i], { onConflict: "item_id" });
+      .upsert(attempt.payload, { onConflict: "item_id" });
 
     if (!error) {
       return {
-        newCount,
-        updatedCount,
-        dutyTaxStoredOnProduct: i < 2,
+        dutyTaxStoredOnProduct: attempt.includesDutyTax,
+        rateStoredOnProduct: attempt.includesRate,
       };
     }
 
@@ -95,17 +115,23 @@ export async function syncProductsFromExcel(
   throw new Error("Product sync failed: Unknown error");
 }
 
-export async function clearPurchaseRecordsForPo(poNo: string): Promise<void> {
-  const { error } = await supabase
-    .from("purchase_record")
-    .delete()
-    .eq("po_no", poNo);
+export async function syncProductsFromExcel(
+  parsedRows: ParsedPurchaseExcelRow[],
+  existingIds: Set<string>,
+): Promise<ProductSyncResult> {
+  const upserts = buildProductUpserts(parsedRows);
+  const newCount = upserts.filter((p) => !existingIds.has(p.item_id)).length;
+  const updatedCount = upserts.length - newCount;
 
-  if (error) {
-    throw new Error(
-      `Failed to clear existing purchase records: ${getErrorMessage(error, "Unknown error")}`,
-    );
-  }
+  const { dutyTaxStoredOnProduct, rateStoredOnProduct } =
+    await upsertProductsWithFallback(upserts);
+
+  return {
+    newCount,
+    updatedCount,
+    dutyTaxStoredOnProduct,
+    rateStoredOnProduct,
+  };
 }
 
 export type PurchaseRecordInsert = {
@@ -119,66 +145,179 @@ export type PurchaseRecordInsert = {
   rate: number;
 };
 
-export async function replacePurchaseRecordsForPo(
-  poNo: string,
-  records: PurchaseRecordInsert[],
-): Promise<void> {
-  await clearPurchaseRecordsForPo(poNo);
-  await insertPurchaseRecords(records);
+export type PurchaseRecordSyncResult = {
+  dutyTaxStoredOnRecord: boolean;
+  rateStoredOnRecord: boolean;
+};
+
+type RecordLinePayload = {
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  duty?: number;
+  tax?: number;
+  rate?: number;
+};
+
+type RecordWriteAttempt = {
+  payload: RecordLinePayload;
+  includesDutyTax: boolean;
+  includesRate: boolean;
+};
+
+function buildRecordLineAttempts(
+  record: PurchaseRecordInsert,
+): RecordWriteAttempt[] {
+  const base = {
+    quantity: record.quantity,
+    unit_price: record.unit_price,
+    subtotal: record.subtotal,
+  };
+
+  return [
+    {
+      payload: {
+        ...base,
+        duty: record.duty,
+        tax: record.tax,
+        rate: record.rate,
+      },
+      includesDutyTax: true,
+      includesRate: true,
+    },
+    {
+      payload: {
+        ...base,
+        duty: record.duty,
+        tax: record.tax,
+      },
+      includesDutyTax: true,
+      includesRate: false,
+    },
+    {
+      payload: base,
+      includesDutyTax: false,
+      includesRate: false,
+    },
+  ];
 }
 
-export async function insertPurchaseRecords(
-  records: PurchaseRecordInsert[],
-): Promise<void> {
-  const chunkSize = 200;
+async function writePurchaseRecordLine(
+  mode: "insert" | "update",
+  target: { id?: number; record: PurchaseRecordInsert },
+): Promise<{ includesDutyTax: boolean; includesRate: boolean }> {
+  const attempts = buildRecordLineAttempts(target.record);
 
-  for (let i = 0; i < records.length; i += chunkSize) {
-    const chunk = records.slice(i, i + chunkSize);
+  for (let i = 0; i < attempts.length; i++) {
+    const attempt = attempts[i];
+    const { error } =
+      mode === "insert"
+        ? await supabase.from("purchase_record").insert({
+            po_no: target.record.po_no,
+            item_no: target.record.item_no,
+            ...attempt.payload,
+          })
+        : await supabase
+            .from("purchase_record")
+            .update(attempt.payload)
+            .eq("id", target.id!);
 
-    const attempts = [
-      chunk,
-      chunk.map(
-        ({ po_no, item_no, quantity, unit_price, subtotal, duty, tax }) => ({
-          po_no,
-          item_no,
-          quantity,
-          unit_price,
-          subtotal,
-          duty,
-          tax,
-        }),
-      ),
-      chunk.map(({ po_no, item_no, quantity, unit_price, subtotal }) => ({
-        po_no,
-        item_no,
-        quantity,
-        unit_price,
-        subtotal,
-      })),
-      chunk.map(({ po_no, item_no, quantity, unit_price }) => ({
-        po_no,
-        item_no,
-        quantity,
-        unit_price,
-      })),
-    ];
-
-    let inserted = false;
-    let lastError: unknown = null;
-
-    for (const payload of attempts) {
-      const { error } = await supabase.from("purchase_record").insert(payload);
-      if (!error) {
-        inserted = true;
-        break;
-      }
-      lastError = error;
+    if (!error) {
+      return {
+        includesDutyTax: attempt.includesDutyTax,
+        includesRate: attempt.includesRate,
+      };
     }
 
-    if (!inserted) {
+    const isLast = i === attempts.length - 1;
+    const missingOptionalColumn =
+      isMissingColumnError(error, "rate") ||
+      isMissingColumnError(error, "duty") ||
+      isMissingColumnError(error, "tax") ||
+      isMissingColumnError(error, "subtotal");
+
+    if (isLast || !missingOptionalColumn) {
       throw new Error(
-        `Purchase record insert failed: ${getErrorMessage(lastError, "Unknown error")}`,
+        `Purchase record ${mode} failed: ${getErrorMessage(error, "Unknown error")}`,
       );
     }
   }
+
+  throw new Error(`Purchase record ${mode} failed: Unknown error`);
+}
+
+/** Sync PO line items from Excel — update existing rows' duty/tax/rate, insert new, remove missing. */
+export async function syncPurchaseRecordsForPo(
+  poNo: string,
+  records: PurchaseRecordInsert[],
+): Promise<PurchaseRecordSyncResult> {
+  const { data: existing, error: fetchError } = await supabase
+    .from("purchase_record")
+    .select("id, item_no")
+    .eq("po_no", poNo);
+
+  if (fetchError) {
+    throw new Error(
+      `Failed to load existing purchase records: ${getErrorMessage(fetchError, "Unknown error")}`,
+    );
+  }
+
+  const existingByItem = new Map(
+    (existing ?? []).map((row) => [row.item_no, row.id as number]),
+  );
+  const excelItems = new Set(records.map((row) => row.item_no));
+
+  const toInsert: PurchaseRecordInsert[] = [];
+  const toUpdate: Array<{ id: number; record: PurchaseRecordInsert }> = [];
+
+  for (const record of records) {
+    const existingId = existingByItem.get(record.item_no);
+    if (existingId != null) {
+      toUpdate.push({ id: existingId, record });
+    } else {
+      toInsert.push(record);
+    }
+  }
+
+  const deleteIds = (existing ?? [])
+    .filter((row) => !excelItems.has(row.item_no))
+    .map((row) => row.id as number);
+
+  if (deleteIds.length > 0) {
+    const { error } = await supabase
+      .from("purchase_record")
+      .delete()
+      .in("id", deleteIds);
+
+    if (error) {
+      throw new Error(
+        `Failed to remove purchase records: ${getErrorMessage(error, "Unknown error")}`,
+      );
+    }
+  }
+
+  let dutyTaxStoredOnRecord = true;
+  let rateStoredOnRecord = true;
+
+  for (const row of toUpdate) {
+    const result = await writePurchaseRecordLine("update", row);
+    if (!result.includesDutyTax) dutyTaxStoredOnRecord = false;
+    if (!result.includesRate) rateStoredOnRecord = false;
+  }
+
+  for (const record of toInsert) {
+    const result = await writePurchaseRecordLine("insert", { record });
+    if (!result.includesDutyTax) dutyTaxStoredOnRecord = false;
+    if (!result.includesRate) rateStoredOnRecord = false;
+  }
+
+  return { dutyTaxStoredOnRecord, rateStoredOnRecord };
+}
+
+/** @deprecated Use syncPurchaseRecordsForPo */
+export async function replacePurchaseRecordsForPo(
+  poNo: string,
+  records: PurchaseRecordInsert[],
+): Promise<PurchaseRecordSyncResult> {
+  return syncPurchaseRecordsForPo(poNo, records);
 }

@@ -23,5 +23,12 @@ export function getErrorMessage(err: unknown, fallback: string): string {
 
 export function isMissingColumnError(err: unknown, column: string): boolean {
   const message = getErrorMessage(err, "").toLowerCase();
-  return message.includes(column.toLowerCase()) && message.includes("column");
+  const columnName = column.toLowerCase();
+
+  return (
+    message.includes(columnName) &&
+    (message.includes("column") ||
+      message.includes("schema cache") ||
+      message.includes("could not find"))
+  );
 }

@@ -14,7 +14,7 @@ import { exportProductsToExcel } from "@/lib/excel-product-export";
 import { fetchLatestPoByItemIds, fetchPurchaseHistoryByItemId, type ProductPurchaseHistoryRow } from "@/lib/product-lookup";
 import { getErrorMessage } from "@/lib/errors";
 import { parsePurchaseExcel } from "@/lib/excel-purchase";
-import { replacePurchaseRecordsForPo, syncProductsFromExcel, type PurchaseRecordInsert } from "@/lib/product-sync";
+import { syncPurchaseRecordsForPo, syncProductsFromExcel, type PurchaseRecordInsert } from "@/lib/product-sync";
 import { deletePurchaseMaster, recalculatePoTotal } from "@/lib/purchase";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -803,9 +803,14 @@ function PurchaseOrderTab({
         rate: row.rate,
       }));
 
-      await replacePurchaseRecordsForPo(excelPoNo, records);
+      const recordSync = await syncPurchaseRecordsForPo(excelPoNo, records);
 
       const updatedTotal = await recalculatePoTotal(excelPoNo);
+
+      const rateStored =
+        productSync.rateStoredOnProduct && recordSync.rateStoredOnRecord;
+      const dutyTaxStored =
+        productSync.dutyTaxStoredOnProduct && recordSync.dutyTaxStoredOnRecord;
 
       const productMsg = [
         productSync.newCount > 0
@@ -816,9 +821,10 @@ function PurchaseOrderTab({
               count: productSync.updatedCount,
             })
           : "",
-        !productSync.dutyTaxStoredOnProduct
+        !productSync.dutyTaxStoredOnProduct || !dutyTaxStored
           ? t("purchase.excelDutyTaxOnRecordOnly")
           : "",
+        !rateStored ? t("purchase.excelRateNotStored") : "",
       ]
         .filter(Boolean)
         .join("");
