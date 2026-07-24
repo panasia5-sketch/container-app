@@ -32,3 +32,10 @@ export function isMissingColumnError(err: unknown, column: string): boolean {
       message.includes("could not find"))
   );
 }
+
+export function isGeneratedColumnError(err: unknown, column: string): boolean {
+  const message = getErrorMessage(err, "").toLowerCase();
+  const columnName = column.toLowerCase();
+
+  return message.includes(columnName) && message.includes("generated column");
+}

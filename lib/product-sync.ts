@@ -1,5 +1,5 @@
 import type { ParsedPurchaseExcelRow } from "./excel-purchase";
-import { getErrorMessage, isMissingColumnError } from "./errors";
+import { getErrorMessage, isGeneratedColumnError, isMissingColumnError } from "./errors";
 import { supabase } from "./supabase";
 import type { Product } from "./types";
 
@@ -153,7 +153,7 @@ export type PurchaseRecordSyncResult = {
 type RecordLinePayload = {
   quantity: number;
   unit_price: number;
-  subtotal: number;
+  subtotal?: number;
   duty?: number;
   tax?: number;
   rate?: number;
@@ -167,17 +167,22 @@ type RecordWriteAttempt = {
 
 function buildRecordLineAttempts(
   record: PurchaseRecordInsert,
+  mode: "insert" | "update",
 ): RecordWriteAttempt[] {
-  const base = {
+  const qtyPrice = {
     quantity: record.quantity,
     unit_price: record.unit_price,
-    subtotal: record.subtotal,
   };
 
-  return [
+  const withOptionalSubtotal =
+    mode === "insert"
+      ? { ...qtyPrice, subtotal: record.subtotal }
+      : qtyPrice;
+
+  const attempts: RecordWriteAttempt[] = [
     {
       payload: {
-        ...base,
+        ...withOptionalSubtotal,
         duty: record.duty,
         tax: record.tax,
         rate: record.rate,
@@ -187,7 +192,17 @@ function buildRecordLineAttempts(
     },
     {
       payload: {
-        ...base,
+        ...qtyPrice,
+        duty: record.duty,
+        tax: record.tax,
+        rate: record.rate,
+      },
+      includesDutyTax: true,
+      includesRate: true,
+    },
+    {
+      payload: {
+        ...withOptionalSubtotal,
         duty: record.duty,
         tax: record.tax,
       },
@@ -195,18 +210,35 @@ function buildRecordLineAttempts(
       includesRate: false,
     },
     {
-      payload: base,
+      payload: {
+        ...qtyPrice,
+        duty: record.duty,
+        tax: record.tax,
+      },
+      includesDutyTax: true,
+      includesRate: false,
+    },
+    {
+      payload: qtyPrice,
       includesDutyTax: false,
       includesRate: false,
     },
   ];
+
+  const seen = new Set<string>();
+  return attempts.filter((attempt) => {
+    const key = JSON.stringify(attempt.payload);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 async function writePurchaseRecordLine(
   mode: "insert" | "update",
   target: { id?: number; record: PurchaseRecordInsert },
 ): Promise<{ includesDutyTax: boolean; includesRate: boolean }> {
-  const attempts = buildRecordLineAttempts(target.record);
+  const attempts = buildRecordLineAttempts(target.record, mode);
 
   for (let i = 0; i < attempts.length; i++) {
     const attempt = attempts[i];
@@ -230,13 +262,14 @@ async function writePurchaseRecordLine(
     }
 
     const isLast = i === attempts.length - 1;
-    const missingOptionalColumn =
+    const retriableError =
       isMissingColumnError(error, "rate") ||
       isMissingColumnError(error, "duty") ||
       isMissingColumnError(error, "tax") ||
-      isMissingColumnError(error, "subtotal");
+      isMissingColumnError(error, "subtotal") ||
+      isGeneratedColumnError(error, "subtotal");
 
-    if (isLast || !missingOptionalColumn) {
+    if (isLast || !retriableError) {
       throw new Error(
         `Purchase record ${mode} failed: ${getErrorMessage(error, "Unknown error")}`,
       );

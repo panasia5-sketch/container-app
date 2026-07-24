@@ -25,7 +25,7 @@ create table if not exists purchase_record (
   item_no text not null references products (item_id),
   quantity numeric(12, 2) not null default 0,
   unit_price numeric(12, 2) not null default 0,
-  subtotal numeric(14, 2) not null default 0,
+  subtotal numeric(14, 2) generated always as (quantity * unit_price) stored,
   duty numeric(12, 2) not null default 0,
   tax numeric(12, 2) not null default 0,
   rate numeric(8, 2) not null default 0
