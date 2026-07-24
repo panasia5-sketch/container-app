@@ -1,36 +1,130 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Container Order Management
 
-## Getting Started
+컨테이너 주문·구매를 관리하는 Next.js 웹 앱입니다.  
+제품 마스터, PO(구매 주문) 등록, 엑셀 일괄 업로드, 구매 내역 조회를 지원합니다.
 
-First, run the development server:
+## 주요 기능
+
+- **제품 관리** — 등록·수정, 품목 ID / Rate 검색, 최근 PO 표시, 구매 내역 조회, 조회 결과 엑셀 내보내기
+- **구매/컨테이너 주문 등록** — PO 마스터 저장 후 엑셀로 품목 일괄 등록
+- **구매 내역 조회** — PO별 품목 상세, PO 삭제
+- **한/영 UI** — 화면 우측 상단에서 언어 전환
+
+## 기술 스택
+
+- [Next.js](https://nextjs.org/) 16 (App Router)
+- [React](https://react.dev/) 19
+- [Supabase](https://supabase.com/) (PostgreSQL)
+- [Tailwind CSS](https://tailwindcss.com/) 4
+- [SheetJS (xlsx)](https://sheetjs.com/) — 엑셀 업로드/다운로드
+
+## 사전 요구 사항
+
+- Node.js 20+
+- npm
+- Supabase 프로젝트
+
+## 로컬 실행
+
+### 1. 저장소 클론
+
+```bash
+git clone https://github.com/panasia5-sketch/container-app.git
+cd container-app
+```
+
+### 2. 의존성 설치
+
+```bash
+npm install
+```
+
+### 3. 환경 변수 설정
+
+`.env.example`을 복사해 `.env.local`을 만듭니다.
+
+```bash
+cp .env.example .env.local
+```
+
+Supabase 대시보드 → **Project Settings → API**에서 값을 입력합니다.
+
+| 변수 | 설명 |
+|------|------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public key |
+
+### 4. Supabase DB 스키마 적용
+
+Supabase 대시보드 → **SQL Editor**에서 순서대로 실행합니다.
+
+1. `supabase/schema.sql` — 전체 스키마
+2. (기존 DB에 컬럼 추가 시) `supabase/migrations/` 아래 SQL 파일
+
+### 5. 개발 서버 실행
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 [http://localhost:3000](http://localhost:3000) 을 엽니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 엑셀 업로드 형식
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1행: 헤더, 2행부터 데이터.
 
-## Learn More
+| A | B | C | D | E | F | G | H |
+|---|---|---|---|---|---|---|---|
+| item_no | description | packaging | quantity | unit_price | duty | tax | rate |
 
-To learn more about Next.js, take a look at the following resources:
+- PO 마스터를 먼저 저장한 뒤, 해당 PO를 선택하고 엑셀을 업로드합니다.
+- 업로드 시 해당 PO의 기존 품목은 **삭제 후 교체**됩니다.
+- `products`에 없는 `item_no`는 자동 등록됩니다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## npm 스크립트
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| 명령 | 설명 |
+|------|------|
+| `npm run dev` | 개발 서버 |
+| `npm run build` | 프로덕션 빌드 |
+| `npm run start` | 빌드 결과 실행 |
+| `npm run lint` | ESLint |
 
-## Deploy on Vercel
+## 프로젝트 구조
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+app/
+  components/ContainerOrderApp.tsx   # 메인 UI
+  page.tsx
+lib/
+  supabase.ts                        # Supabase 클라이언트
+  excel-purchase.ts                  # 구매 엑셀 파싱
+  excel-product-export.ts            # 제품 조회 결과 export
+  product-sync.ts                    # products / purchase_record 동기화
+  product-lookup.ts                  # 최근 PO, 제품별 구매 내역
+supabase/
+  schema.sql
+  migrations/
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Vercel 배포
+
+GitHub 연동 후 Vercel에서 Import하면 됩니다. 자세한 단계는 아래 **배포 가이드**를 참고하세요.
+
+### Vercel 환경 변수
+
+| Name | Value |
+|------|-------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+
+> `NEXT_PUBLIC_` 변수는 브라우저에 노출됩니다. Supabase **anon key**는 클라이언트용이며, RLS 정책으로 접근을 제한하세요.
+
+## 보안 참고
+
+- `.env.local`은 Git에 커밋하지 마세요 (`.gitignore`에 포함됨).
+- 현재 RLS 정책은 데모/내부용으로 **전체 허용**입니다. 공개 배포 시 인증 및 정책 강화를 권장합니다.
+
+## License
+
+Private / internal use.

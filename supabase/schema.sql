@@ -9,6 +9,8 @@ create table if not exists products (
   tax numeric(12, 2) not null default 0,
   rate numeric(8, 2) not null default 0
 );
+
+create table if not exists purchase_master (
   po_no text primary key,
   order_date date not null,
   container_no text not null,
