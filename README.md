@@ -9,6 +9,7 @@
 - **구매/컨테이너 주문 등록** — PO 마스터 저장 후 엑셀로 품목 일괄 등록
 - **구매 내역 조회** — PO별 품목 상세, PO 삭제
 - **한/영 UI** — 화면 우측 상단에서 언어 전환
+- **로그인** — Supabase Auth 이메일/비밀번호 로그인 (미로그인 시 접근 불가)
 
 ## 기술 스택
 
@@ -61,7 +62,33 @@ Supabase 대시보드 → **SQL Editor**에서 순서대로 실행합니다.
 1. `supabase/schema.sql` — 전체 스키마
 2. (기존 DB에 컬럼 추가 시) `supabase/migrations/` 아래 SQL 파일
 
-### 5. 개발 서버 실행
+### 5. Supabase Auth 설정
+
+1. Supabase → **Authentication → Providers → Email** — Email 로그인 활성화
+2. **Authentication → Users → Add user** — 사용할 계정(이메일/비밀번호) 생성
+3. SQL Editor에서 `supabase/migrations/add_auth_rls.sql` 실행 — **로그인한 사용자만** DB 접근 허용
+4. SQL Editor에서 `supabase/migrations/add_user_profiles.sql` 실행 — **역할(권한) 테이블** 생성
+
+> RLS 마이그레이션 전에는 누구나 데이터 접근 가능합니다. 배포 전 반드시 실행하세요.
+
+#### 사용자 역할 부여
+
+최초 로그인 시 기본 역할은 `viewer`(조회 전용)입니다. 관리자는 Supabase SQL Editor에서 변경합니다:
+
+```sql
+update user_profiles set role = 'admin' where email = 'your@email.com';
+-- role: admin | manager | viewer
+```
+
+| 역할 | 메뉴 | 주요 권한 |
+|------|------|-----------|
+| `admin` | 제품·구매·내역 | 전체 CRUD |
+| `manager` | 제품·구매·내역 | 전체 CRUD |
+| `viewer` | 제품·내역 | 조회·엑셀 export만 (등록/수정/삭제 불가) |
+
+메뉴·기능 권한은 `lib/auth/permissions.ts`에서 중앙 관리합니다.
+
+### 6. 개발 서버 실행
 
 ```bash
 npm run dev
@@ -123,7 +150,8 @@ GitHub 연동 후 Vercel에서 Import하면 됩니다. 자세한 단계는 아�
 ## 보안 참고
 
 - `.env.local`은 Git에 커밋하지 마세요 (`.gitignore`에 포함됨).
-- 현재 RLS 정책은 데모/내부용으로 **전체 허용**입니다. 공개 배포 시 인증 및 정책 강화를 권장합니다.
+- `add_auth_rls.sql` 적용 후 **로그인한 사용자만** 데이터 CRUD 가능합니다.
+- 사용자 계정은 Supabase 대시보드에서 관리자가 생성합니다.
 
 ## License
 

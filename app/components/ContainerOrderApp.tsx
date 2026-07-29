@@ -16,6 +16,7 @@ import { getErrorMessage } from "@/lib/errors";
 import { parsePurchaseExcel } from "@/lib/excel-purchase";
 import { syncPurchaseRecordsForPo, syncProductsFromExcel, type PurchaseRecordInsert } from "@/lib/product-sync";
 import { deletePurchaseMaster, recalculatePoTotal } from "@/lib/purchase";
+import { useAuth, usePermissions } from "@/lib/auth/AuthProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import LanguageSwitcher from "./LanguageSwitcher";
 import type {
@@ -25,7 +26,13 @@ import type {
   TabId,
 } from "@/lib/types";
 
-const TAB_IDS: TabId[] = ["products", "purchase", "history"];
+function NoAccessPanel({ message }: { message: string }) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+      <p className="text-sm text-slate-500">{message}</p>
+    </section>
+  );
+}
 
 const emptyMaster = (): Omit<PurchaseMaster, "total_amount"> & {
   total_amount: number;
@@ -103,6 +110,11 @@ function ProductManagementTab({
   onRefresh: () => void;
 }) {
   const { t, locale } = useLanguage();
+  const { canPerformAction } = usePermissions();
+  const canCreateProduct = canPerformAction("products.create");
+  const canUpdateProduct = canPerformAction("products.update");
+  const canExportProducts = canPerformAction("products.export");
+  const showProductForm = canCreateProduct || canUpdateProduct;
   const [itemIdSearch, setItemIdSearch] = useState("");
   const [rateSearch, setRateSearch] = useState("");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -232,6 +244,8 @@ function ProductManagementTab({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (editingItemId ? !canUpdateProduct : !canCreateProduct) return;
+
     setSaving(true);
     setMessage(null);
 
@@ -282,7 +296,7 @@ function ProductManagementTab({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+    <div className={`grid gap-6 ${showProductForm ? "lg:grid-cols-[1fr_360px]" : ""}`}>
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -323,7 +337,7 @@ function ProductManagementTab({
               </label>
             </div>
           </div>
-          {isFiltering && (
+          {isFiltering && canExportProducts && (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-blue-700">{t("products.searchHint")}</p>
               <button
@@ -335,6 +349,9 @@ function ProductManagementTab({
                 {t("products.exportExcel")}
               </button>
             </div>
+          )}
+          {isFiltering && !canExportProducts && (
+            <p className="mt-3 text-sm text-blue-700">{t("products.searchHint")}</p>
           )}
         </div>
         <div className="overflow-x-auto">
@@ -423,13 +440,15 @@ function ProductManagementTab({
                             >
                               {t("products.purchaseHistory")}
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => startEdit(product)}
-                              className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
-                            >
-                              {t("products.editBtn")}
-                            </button>
+                            {canUpdateProduct && (
+                              <button
+                                type="button"
+                                onClick={() => startEdit(product)}
+                                className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+                              >
+                                {t("products.editBtn")}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -553,6 +572,7 @@ function ProductManagementTab({
         </div>
       </section>
 
+      {showProductForm && (
       <section className="h-fit rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">
           {editingItemId ? t("products.editTitle") : t("products.newTitle")}
@@ -697,6 +717,7 @@ function ProductManagementTab({
           </div>
         </form>
       </section>
+      )}
     </div>
   );
 }
@@ -1021,6 +1042,8 @@ function PurchaseHistoryTab({
   onRefresh: () => void;
 }) {
   const { t, locale } = useLanguage();
+  const { canPerformAction } = usePermissions();
+  const canDeletePo = canPerformAction("history.delete");
   const [expandedPo, setExpandedPo] = useState<string | null>(null);
   const [records, setRecords] = useState<Record<string, PurchaseRecord[]>>({});
   const [loadingPo, setLoadingPo] = useState<string | null>(null);
@@ -1069,6 +1092,8 @@ function PurchaseHistoryTab({
   };
 
   const handleDeletePo = async (poNo: string) => {
+    if (!canDeletePo) return;
+
     if (!window.confirm(t("history.deleteConfirm", { poNo }))) return;
 
     setDeletingPo(poNo);
@@ -1171,6 +1196,7 @@ function PurchaseHistoryTab({
                       </div>
                     </div>
                   </button>
+                  {canDeletePo && (
                   <button
                     type="button"
                     onClick={() => handleDeletePo(po.po_no)}
@@ -1181,6 +1207,7 @@ function PurchaseHistoryTab({
                       ? t("history.deleting")
                       : t("history.deletePo")}
                   </button>
+                  )}
                 </div>
 
                 {isExpanded && (
@@ -1276,11 +1303,19 @@ function PurchaseHistoryTab({
 
 export default function ContainerOrderApp() {
   const { t } = useLanguage();
+  const { user, signOut, role, accessibleTabs, canAccessTab } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseMaster[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
+
+  useEffect(() => {
+    if (accessibleTabs.length === 0) return;
+    if (!canAccessTab(activeTab)) {
+      setActiveTab(accessibleTabs[0]);
+    }
+  }, [accessibleTabs, activeTab, canAccessTab]);
 
   const fetchProducts = useCallback(async () => {
     setLoadingProducts(true);
@@ -1322,13 +1357,26 @@ export default function ContainerOrderApp() {
             </h1>
             <p className="mt-1 text-sm text-slate-500">{t("app.subtitle")}</p>
           </div>
-          <LanguageSwitcher />
+          <div className="flex items-start gap-3">
+            <div className="hidden text-right sm:block">
+              <p className="text-xs text-slate-500">{user?.email}</p>
+              <p className="text-xs font-medium text-blue-700">{t(`roles.${role}`)}</p>
+              <button
+                type="button"
+                onClick={() => signOut()}
+                className="mt-1 text-sm font-medium text-slate-600 hover:text-slate-900"
+              >
+                {t("auth.signOut")}
+              </button>
+            </div>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <nav className="mb-6 flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
-          {TAB_IDS.map((tabId) => (
+          {accessibleTabs.map((tabId) => (
             <button
               key={tabId}
               type="button"
@@ -1344,25 +1392,31 @@ export default function ContainerOrderApp() {
           ))}
         </nav>
 
-        {activeTab === "products" && (
+        {accessibleTabs.length === 0 ? (
+          <NoAccessPanel message={t("auth.noMenuAccess")} />
+        ) : (
+          <>
+        {activeTab === "products" && canAccessTab("products") && (
           <ProductManagementTab
             products={products}
             loading={loadingProducts}
             onRefresh={fetchProducts}
           />
         )}
-        {activeTab === "purchase" && (
+        {activeTab === "purchase" && canAccessTab("purchase") && (
           <PurchaseOrderTab
             purchaseOrders={purchaseOrders}
             onRefresh={refreshAll}
           />
         )}
-        {activeTab === "history" && (
+        {activeTab === "history" && canAccessTab("history") && (
           <PurchaseHistoryTab
             purchaseOrders={purchaseOrders}
             loading={loadingOrders}
             onRefresh={fetchPurchaseOrders}
           />
+        )}
+          </>
         )}
       </div>
     </div>

@@ -33,10 +33,33 @@ create table if not exists purchase_record (
 
 create index if not exists purchase_record_po_no_idx on purchase_record (po_no);
 
+create table if not exists user_profiles (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  email text not null,
+  role text not null default 'viewer'
+    check (role in ('admin', 'manager', 'viewer')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists user_profiles_role_idx on user_profiles (role);
+
+alter table user_profiles enable row level security;
+
+create policy "Users can read own profile"
+  on user_profiles for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+create policy "Users can create own profile"
+  on user_profiles for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
 alter table products enable row level security;
 alter table purchase_master enable row level security;
 alter table purchase_record enable row level security;
 
-create policy "Allow all on products" on products for all using (true) with check (true);
-create policy "Allow all on purchase_master" on purchase_master for all using (true) with check (true);
-create policy "Allow all on purchase_record" on purchase_record for all using (true) with check (true);
+create policy "Authenticated access on products" on products for all to authenticated using (true) with check (true);
+create policy "Authenticated access on purchase_master" on purchase_master for all to authenticated using (true) with check (true);
+create policy "Authenticated access on purchase_record" on purchase_record for all to authenticated using (true) with check (true);
