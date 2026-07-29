@@ -64,8 +64,9 @@ Supabase 대시보드 → **SQL Editor**에서 순서대로 실행합니다.
 
 ### 5. Supabase Auth 설정
 
-1. Supabase → **Authentication → Providers → Email** — Email 로그인 활성화
-2. **Authentication → Users → Add user** — 사용할 계정(이메일/비밀번호) 생성
+1. Supabase → **Authentication → Providers → Email** — Email 로그인·**회원가입(Sign up)** 활성화
+2. (선택) **Authentication → Email → Confirm email** — 이메일 확인 필요 여부 설정
+3. **Authentication → Users** — 관리자가 직접 계정 추가도 가능
 3. SQL Editor에서 `supabase/migrations/add_auth_rls.sql` 실행 — **로그인한 사용자만** DB 접근 허용
 4. SQL Editor에서 `supabase/migrations/add_user_profiles.sql` 실행 — **역할(권한) 테이블** 생성
 

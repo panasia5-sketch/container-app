@@ -32,6 +32,10 @@ type AuthContextValue = {
   canAccessTab: (tab: TabId) => boolean;
   canPerformAction: (action: AppAction) => boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
 };
 
@@ -109,6 +113,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error?.message ?? null;
   }, []);
 
+  const signUp = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+    });
+
+    if (error) {
+      return { error: error.message, needsEmailConfirmation: false };
+    }
+
+    if (data.session?.user) {
+      await loadProfile(data.session.user);
+    }
+
+    return {
+      error: null,
+      needsEmailConfirmation: !data.session,
+    };
+  }, [loadProfile]);
+
   const signOut = useCallback(async () => {
     setProfile(null);
     await supabase.auth.signOut();
@@ -138,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       canAccessTab,
       canPerformAction,
       signIn,
+      signUp,
       signOut,
     }),
     [
@@ -150,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       canAccessTab,
       canPerformAction,
       signIn,
+      signUp,
       signOut,
     ],
   );
