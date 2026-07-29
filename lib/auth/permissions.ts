@@ -13,7 +13,7 @@ export function isUserRole(value: string): value is UserRole {
 
 /** Menu access by role — add tabs here when new menus are introduced. */
 export const TAB_ACCESS: Record<UserRole, TabId[]> = {
-  admin: ["products", "purchase", "history"],
+  admin: ["products", "purchase", "history", "users"],
   manager: ["products", "purchase", "history"],
   viewer: ["products", "history"],
 };
@@ -28,7 +28,9 @@ export type AppAction =
   | "purchase.create"
   | "purchase.upload"
   | "history.read"
-  | "history.delete";
+  | "history.delete"
+  | "users.read"
+  | "users.manage";
 
 export const ACTION_ACCESS: Record<UserRole, AppAction[]> = {
   admin: [
@@ -41,6 +43,8 @@ export const ACTION_ACCESS: Record<UserRole, AppAction[]> = {
     "purchase.upload",
     "history.read",
     "history.delete",
+    "users.read",
+    "users.manage",
   ],
   manager: [
     "products.read",

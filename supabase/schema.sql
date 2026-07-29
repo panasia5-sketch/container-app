@@ -56,6 +56,32 @@ create policy "Users can create own profile"
   to authenticated
   with check (auth.uid() = user_id);
 
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.user_profiles
+    where user_id = auth.uid()
+      and role = 'admin'
+  );
+$$;
+
+create policy "Admins can read all profiles"
+  on user_profiles for select
+  to authenticated
+  using (public.is_admin());
+
+create policy "Admins can update profiles"
+  on user_profiles for update
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
 alter table products enable row level security;
 alter table purchase_master enable row level security;
 alter table purchase_record enable row level security;

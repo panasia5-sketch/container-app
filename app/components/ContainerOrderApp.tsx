@@ -19,6 +19,7 @@ import { deletePurchaseMaster, recalculatePoTotal } from "@/lib/purchase";
 import { useAuth, usePermissions } from "@/lib/auth/AuthProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import LanguageSwitcher from "./LanguageSwitcher";
+import UserManagementTab from "./UserManagementTab";
 import type {
   Product,
   PurchaseMaster,
@@ -1415,6 +1416,9 @@ export default function ContainerOrderApp() {
             loading={loadingOrders}
             onRefresh={fetchPurchaseOrders}
           />
+        )}
+        {activeTab === "users" && canAccessTab("users") && (
+          <UserManagementTab />
         )}
           </>
         )}

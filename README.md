@@ -69,25 +69,31 @@ Supabase 대시보드 → **SQL Editor**에서 순서대로 실행합니다.
 3. **Authentication → Users** — 관리자가 직접 계정 추가도 가능
 3. SQL Editor에서 `supabase/migrations/add_auth_rls.sql` 실행 — **로그인한 사용자만** DB 접근 허용
 4. SQL Editor에서 `supabase/migrations/add_user_profiles.sql` 실행 — **역할(권한) 테이블** 생성
+5. SQL Editor에서 `supabase/migrations/add_admin_user_management.sql` 실행 — **관리자 계정 관리** RLS
 
 > RLS 마이그레이션 전에는 누구나 데이터 접근 가능합니다. 배포 전 반드시 실행하세요.
 
 #### 사용자 역할 부여
 
-최초 로그인 시 기본 역할은 `viewer`(조회 전용)입니다. 관리자는 Supabase SQL Editor에서 변경합니다:
+최초 로그인·회원가입 시 기본 역할은 `viewer`(조회 전용)입니다.
+
+**첫 관리자 지정** (SQL Editor, 1회):
 
 ```sql
 update user_profiles set role = 'admin' where email = 'your@email.com';
--- role: admin | manager | viewer
 ```
+
+**이후 관리자는 앱에서 관리**: 로그인 → **계정 관리** 탭 → 사용자별 역할 변경
 
 | 역할 | 메뉴 | 주요 권한 |
 |------|------|-----------|
-| `admin` | 제품·구매·내역 | 전체 CRUD |
+| `admin` | 제품·구매·내역·**계정 관리** | 전체 CRUD + 사용자 역할 변경 |
 | `manager` | 제품·구매·내역 | 전체 CRUD |
-| `viewer` | 제품·내역 | 조회·엑셀 export만 (등록/수정/삭제 불가) |
+| `viewer` | 제품·내역 | 조회·엑셀 export만 |
 
 메뉴·기능 권한은 `lib/auth/permissions.ts`에서 중앙 관리합니다.
+
+> 비밀번호 초기화·계정 삭제는 [Supabase Authentication → Users](https://supabase.com/dashboard)에서 처리합니다.
 
 ### 6. 개발 서버 실행
 

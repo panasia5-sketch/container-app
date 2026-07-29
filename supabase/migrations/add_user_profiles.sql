@@ -13,13 +13,14 @@ create index if not exists user_profiles_role_idx on user_profiles (role);
 
 alter table user_profiles enable row level security;
 
--- Users can read their own profile (role used for menu permissions)
+drop policy if exists "Users can read own profile" on user_profiles;
+drop policy if exists "Users can create own profile" on user_profiles;
+
 create policy "Users can read own profile"
   on user_profiles for select
   to authenticated
   using (auth.uid() = user_id);
 
--- Users can insert their own profile once (first login bootstrap)
 create policy "Users can create own profile"
   on user_profiles for insert
   to authenticated

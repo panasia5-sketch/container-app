@@ -4,6 +4,10 @@ drop policy if exists "Allow all on products" on products;
 drop policy if exists "Allow all on purchase_master" on purchase_master;
 drop policy if exists "Allow all on purchase_record" on purchase_record;
 
+drop policy if exists "Authenticated access on products" on products;
+drop policy if exists "Authenticated access on purchase_master" on purchase_master;
+drop policy if exists "Authenticated access on purchase_record" on purchase_record;
+
 create policy "Authenticated access on products"
   on products for all
   to authenticated
