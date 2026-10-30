@@ -13,9 +13,9 @@ export function isUserRole(value: string): value is UserRole {
 
 /** Menu access by role — add tabs here when new menus are introduced. */
 export const TAB_ACCESS: Record<UserRole, TabId[]> = {
-  admin: ["products", "purchase", "history", "users"],
-  manager: ["products", "purchase", "history"],
-  viewer: ["products", "history"],
+  admin: ["products", "purchase", "history", "pdf", "users"],
+  manager: ["products", "purchase", "history", "pdf"],
+  viewer: ["products", "history", "pdf"],
 };
 
 /** Fine-grained actions for future UI/API guards (buttons, forms, etc.). */
@@ -29,6 +29,7 @@ export type AppAction =
   | "purchase.upload"
   | "history.read"
   | "history.delete"
+  | "pdf.classify"
   | "users.read"
   | "users.manage";
 
@@ -43,6 +44,7 @@ export const ACTION_ACCESS: Record<UserRole, AppAction[]> = {
     "purchase.upload",
     "history.read",
     "history.delete",
+    "pdf.classify",
     "users.read",
     "users.manage",
   ],
@@ -56,8 +58,9 @@ export const ACTION_ACCESS: Record<UserRole, AppAction[]> = {
     "purchase.upload",
     "history.read",
     "history.delete",
+    "pdf.classify",
   ],
-  viewer: ["products.read", "products.export", "history.read"],
+  viewer: ["products.read", "products.export", "history.read", "pdf.classify"],
 };
 
 export function getAccessibleTabs(role: UserRole): TabId[] {
