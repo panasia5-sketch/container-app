@@ -14,6 +14,7 @@ const ko = {
     products: "제품 관리",
     purchase: "구매/컨테이너 주문 등록",
     history: "구매 내역 조회",
+    pdf: "PDF 고객 분류",
     users: "계정 관리",
   },
   auth: {
@@ -168,6 +169,24 @@ const ko = {
     deleteFailed: "주문 삭제에 실패했습니다.",
     deleting: "삭제 중...",
   },
+  pdf: {
+    title: "PDF 고객 ID 분류",
+    hint: "다중 페이지 PDF를 업로드하면 각 페이지 좌측 하단의 고객 ID를 읽어 같은 ID끼리 묶은 PDF를 ZIP으로 내려받습니다.",
+    fileLabel: "PDF 파일",
+    process: "분류 실행",
+    processing: "분류 중...",
+    downloadZip: "ZIP 다운로드",
+    noFile: "PDF 파일을 선택해주세요.",
+    processFailed: "PDF 분류에 실패했습니다.",
+    unknownWarning:
+      "고객 ID를 찾지 못한 페이지가 {count}장 있습니다. unknown.pdf로 묶였습니다.",
+    unknownLabel: "미식별",
+    resultTitle: "분류 결과",
+    resultSummary: "전체 {pages}페이지 → {groups}개 파일",
+    colCustomerId: "출력 파일",
+    colPageCount: "페이지 수",
+    colPages: "원본 페이지",
+  },
 } as const;
 
 const en = {
@@ -184,6 +203,7 @@ const en = {
     products: "Product Management",
     purchase: "Purchase / Container Orders",
     history: "Order History",
+    pdf: "PDF Customer Split",
     users: "User Management",
   },
   auth: {
@@ -337,6 +357,24 @@ const en = {
     deleteSuccess: "PO {poNo} deleted successfully.",
     deleteFailed: "Failed to delete purchase order.",
     deleting: "Deleting...",
+  },
+  pdf: {
+    title: "PDF Customer ID Split",
+    hint: "Upload a multi-page PDF. Pages are grouped by the customer id in the bottom-left corner into one PDF per id (ZIP download).",
+    fileLabel: "PDF file",
+    process: "Classify",
+    processing: "Classifying...",
+    downloadZip: "Download ZIP",
+    noFile: "Please select a PDF file.",
+    processFailed: "PDF classification failed.",
+    unknownWarning:
+      "{count} page(s) had no detectable customer id and were placed in unknown.pdf.",
+    unknownLabel: "unidentified",
+    resultTitle: "Classification result",
+    resultSummary: "{pages} page(s) → {groups} file(s)",
+    colCustomerId: "Output file",
+    colPageCount: "Pages",
+    colPages: "Source pages",
   },
 } as const;
 
