@@ -180,7 +180,10 @@ let ocrWorkerPromise: Promise<Tesseract.Worker> | null = null;
 async function getOcrWorker(): Promise<Tesseract.Worker> {
   if (!ocrWorkerPromise) {
     ocrWorkerPromise = (async () => {
-      const worker = await Tesseract.createWorker("eng");
+      const cachePath = join(tmpdir(), "tesseract-cache");
+      const worker = await Tesseract.createWorker("eng", undefined, {
+        cachePath,
+      });
       await worker.setParameters({
         tessedit_char_whitelist:
           "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-",
