@@ -14,9 +14,9 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { createCanvas } from "@napi-rs/canvas";
 import { PDFDocument } from "pdf-lib";
-import { getDocument, type PDFPageProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import JSZip from "jszip";
 import Tesseract from "tesseract.js";
+import { loadPdfDocument, type PDFPageProxy } from "@/lib/pdfjs-node";
 
 type TextItem = {
   str: string;
@@ -207,11 +207,7 @@ async function extractOcrId(
 async function classifyPages(
   data: Uint8Array,
 ): Promise<PageClassification[]> {
-  const loadingTask = getDocument({
-    data: data.slice(),
-    useSystemFonts: true,
-  });
-  const pdf = await loadingTask.promise;
+  const pdf = await loadPdfDocument(data);
   const classifications: PageClassification[] = [];
 
   try {

@@ -115,6 +115,8 @@ npm run dev
 
 **의존성 참고:** `pdf-lib`, `pdfjs-dist`, `@napi-rs/canvas`, `tesseract.js`, `jszip`. Node.js 런타임 API 라우트(`/api/pdf-classify`)에서 처리합니다. OCR은 영문 숫자 whitelist를 사용합니다.
 
+**Vercel/서버리스:** pdf.js fake worker가 `pdf.worker.mjs`를 동적 import하므로, `lib/pdfjs-node.ts`에서 worker를 정적 import·`globalThis.pdfjsWorker`에 설치하고 `next.config.ts`의 `outputFileTracingIncludes`로 `/api/pdf-classify` 번들에 worker·standard_fonts를 포함합니다.
+
 ## 엑셀 업로드 형식
 
 1행: 헤더, 2행부터 데이터.
