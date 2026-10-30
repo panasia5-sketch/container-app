@@ -113,9 +113,9 @@ npm run dev
 
 **고객 ID 형식 가정:** 영문·숫자와 `._-` 조합(2–64자). 짧은 페이지 번호·날짜·공통 라벨(page/고객 등)은 무시합니다.
 
-**의존성 참고:** `pdf-lib`, `pdfjs-dist`, `@napi-rs/canvas`, `tesseract.js`, `jszip`. Node.js 런타임 API 라우트(`/api/pdf-classify`)에서 처리합니다. OCR은 영문 숫자 whitelist를 사용합니다.
+**의존성 참고:** `pdf-lib`, `unpdf`, `@napi-rs/canvas`, `tesseract.js`, `jszip`. Node.js 런타임 API 라우트(`/api/pdf-classify`)에서 처리합니다. OCR은 영문 숫자 whitelist를 사용합니다.
 
-**Vercel/서버리스:** pdf.js fake worker가 `pdf.worker.mjs`를 동적 import하므로, `lib/pdfjs-node.ts`에서 worker를 정적 import·`globalThis.pdfjsWorker`에 설치하고 `next.config.ts`의 `outputFileTracingIncludes`로 `/api/pdf-classify` 번들에 worker·standard_fonts를 포함합니다.
+**Vercel/서버리스:** PDF 파싱은 `unpdf`(worker 인라인)를 사용합니다. `pdfjs-dist`의 `pdf.worker.mjs` 파일에 의존하지 않으므로 `/var/task`에서 fake-worker 모듈 누락 오류가 나지 않습니다.
 
 ## 엑셀 업로드 형식
 
