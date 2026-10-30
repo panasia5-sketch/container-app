@@ -16,7 +16,11 @@ import { createCanvas } from "@napi-rs/canvas";
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
 import Tesseract from "tesseract.js";
-import { loadPdfDocument, type PDFPageProxy } from "@/lib/pdfjs-node";
+import {
+  destroyPdfDocument,
+  loadPdfDocument,
+  type PDFPageProxy,
+} from "@/lib/pdfjs-node";
 
 type TextItem = {
   str: string;
@@ -212,7 +216,7 @@ async function classifyPages(
 
   try {
     for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
+      const page = (await pdf.getPage(i)) as unknown as PDFPageProxy;
       const textResult = await extractTextId(page);
       if (textResult.id) {
         classifications.push({
@@ -242,11 +246,7 @@ async function classifyPages(
       });
     }
   } finally {
-    try {
-      pdf.cleanup();
-    } catch {
-      /* ignore */
-    }
+    await destroyPdfDocument(pdf);
   }
 
   return classifications;

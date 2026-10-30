@@ -1,65 +1,58 @@
 /**
- * Configure pdf.js for Node / Next.js serverless (Vercel `/var/task`).
+ * Load PDFs for server-side text extraction / OCR rendering without
+ * `pdfjs-dist`'s separate `pdf.worker.mjs` file.
  *
- * pdfjs's Node "fake worker" dynamically `import()`s `pdf.worker.mjs`. That
- * sibling is invisible to @vercel/nft, so we:
- * 1. Statically import the worker and install it on `globalThis.pdfjsWorker`
- *    (fake-worker then skips the dynamic import).
- * 2. Also set `GlobalWorkerOptions.workerSrc` to an absolute `file://` URL
- *    under `process.cwd()/node_modules/...` as a fallback.
- * 3. Rely on `outputFileTracingIncludes` in next.config.ts to ship the worker
- *    (and standard_fonts) into the serverless function bundle.
+ * Why not `pdfjs-dist` directly on Vercel:
+ * pdf.js Node "fake worker" dynamically imports
+ * `node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs`. That sibling is not
+ * reliably present under `/var/task` even with `outputFileTracingIncludes`,
+ * which produced:
+ *   Setting up fake worker failed: Cannot find module '.../pdf.worker.mjs'
+ *
+ * `unpdf` redistributes PDF.js with the worker inlined, so serverless does
+ * not need that file on disk.
  */
-import { join } from "path";
-import { pathToFileURL } from "url";
-import {
-  getDocument,
-  GlobalWorkerOptions,
-  type PDFDocumentProxy,
-  type PDFPageProxy,
-} from "pdfjs-dist/legacy/build/pdf.mjs";
-import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
+import { getDocumentProxy } from "unpdf";
 
-export type { PDFDocumentProxy, PDFPageProxy };
+export type PDFDocumentProxy = Awaited<ReturnType<typeof getDocumentProxy>>;
 
-function pdfjsAssetUrl(...parts: string[]): string {
-  // On Vercel, cwd is `/var/task` and traced node_modules live there.
-  return pathToFileURL(
-    join(process.cwd(), "node_modules", "pdfjs-dist", ...parts),
-  ).href;
-}
-
-function ensurePdfjsWorkerConfigured(): void {
-  const g = globalThis as typeof globalThis & {
-    pdfjsWorker?: { WorkerMessageHandler?: unknown };
+/** Minimal page surface used by the classifier (matches pdf.js page proxy). */
+export type PDFPageProxy = {
+  getViewport: (params: { scale: number }) => {
+    width: number;
+    height: number;
   };
-
-  // Prefer in-process handler so fake-worker never does dynamic import().
-  if (pdfjsWorker?.WorkerMessageHandler) {
-    g.pdfjsWorker = pdfjsWorker;
-  }
-
-  // Fallback for environments where the static import is stripped/externalized.
-  if (!GlobalWorkerOptions.workerSrc) {
-    GlobalWorkerOptions.workerSrc = pdfjsAssetUrl(
-      "legacy",
-      "build",
-      "pdf.worker.mjs",
-    );
-  }
-}
+  getTextContent: () => Promise<{ items: unknown[] }>;
+  render: (params: {
+    canvasContext: CanvasRenderingContext2D;
+    viewport: { width: number; height: number };
+    canvas: HTMLCanvasElement;
+  }) => { promise: Promise<void> };
+};
 
 export async function loadPdfDocument(
   data: Uint8Array,
 ): Promise<PDFDocumentProxy> {
-  ensurePdfjsWorkerConfigured();
-  const loadingTask = getDocument({
-    data: data.slice(),
-    // Text positions come from the content stream; avoid native font
-    // fallbacks that need platform-specific canvas binaries on serverless.
-    useSystemFonts: false,
-    disableFontFace: true,
-    standardFontDataUrl: pdfjsAssetUrl("standard_fonts") + "/",
-  });
-  return loadingTask.promise;
+  // unpdf accepts Uint8Array / Buffer and runs the inlined worker in-process.
+  return getDocumentProxy(data.slice());
+}
+
+export async function destroyPdfDocument(
+  pdf: PDFDocumentProxy,
+): Promise<void> {
+  try {
+    const anyPdf = pdf as PDFDocumentProxy & {
+      destroy?: () => Promise<void> | void;
+      cleanup?: (keepLoadedFonts?: boolean) => Promise<unknown> | unknown;
+    };
+    if (typeof anyPdf.destroy === "function") {
+      await anyPdf.destroy();
+      return;
+    }
+    if (typeof anyPdf.cleanup === "function") {
+      await anyPdf.cleanup();
+    }
+  } catch {
+    /* ignore */
+  }
 }
