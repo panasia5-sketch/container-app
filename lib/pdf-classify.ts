@@ -70,7 +70,7 @@ export type ClassifyResult = {
   unknownPageCount: number;
   zipBytes: Uint8Array;
   zipFilename: string;
-  /** Sanitized suffix; when set, files are `{code}     {suffix}.pdf` (5 spaces). */
+  /** Sanitized suffix; when set, files are `{code}` + 10 spaces + `{suffix}.pdf`. */
   filenameSuffix: string;
 };
 

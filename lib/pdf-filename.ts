@@ -2,16 +2,16 @@
  * Shared filename helpers for PDF classify (safe to import from client components).
  *
  * With a non-empty suffix:
- *   `{customerCode}` + five ASCII spaces + `{suffix}` + `.pdf`
- *   e.g. `CUST-1001     invoice.pdf`
+ *   `{customerCode}` + ten ASCII spaces + `{suffix}` + `.pdf`
+ *   e.g. `cpat          invoice.pdf`
  * Empty suffix:
  *   `{customerCode}.pdf` (no trailing spaces)
  */
 
 const UNKNOWN_BUCKET = "unknown";
 
-/** Exactly five ASCII spaces between customer code and suffix. */
-export const FILENAME_CODE_SUFFIX_GAP = "     ";
+/** Exactly ten ASCII spaces between customer code and suffix. */
+export const FILENAME_CODE_SUFFIX_GAP = "          ";
 
 export function sanitizeFilenameId(id: string): string {
   const cleaned = id
@@ -36,7 +36,7 @@ export function sanitizeFilenameSuffix(raw: string): string {
     .slice(0, 80);
 }
 
-/** Build output basename (no extension) with optional five-space gap + suffix. */
+/** Build output basename (no extension) with optional ten-space gap + suffix. */
 export function buildOutputBasename(
   customerCode: string,
   suffix: string,
