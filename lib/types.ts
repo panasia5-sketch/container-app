@@ -38,4 +38,4 @@ export type PurchaseLineItem = {
   tax: number;
 };
 
-export type TabId = "products" | "purchase" | "history" | "pdf" | "users";
+export type TabId = "products" | "purchase" | "history" | "users";

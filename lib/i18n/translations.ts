@@ -14,7 +14,6 @@ const ko = {
     products: "제품 관리",
     purchase: "구매/컨테이너 주문 등록",
     history: "구매 내역 조회",
-    pdf: "PDF 고객 분류",
     users: "계정 관리",
   },
   auth: {
@@ -170,7 +169,11 @@ const ko = {
     deleting: "삭제 중...",
   },
   pdf: {
-    title: "PDF 고객 ID 분류",
+    brand: "PDF Split",
+    siteTitle: "PDF 고객 분류",
+    siteSubtitle: "페이지 좌측 하단 고객 ID로 PDF를 나눠 ZIP으로 저장합니다",
+    siteLoginHint: "로그인 후 PDF 분류를 이용해주세요",
+    title: "PDF 업로드 · 분류",
     hint: "다중 페이지 PDF를 업로드하면 각 페이지 좌측 하단의 고객 ID를 읽어 같은 ID끼리 묶은 PDF를 ZIP으로 내려받습니다.",
     fileLabel: "PDF 파일",
     process: "분류 실행",
@@ -203,7 +206,6 @@ const en = {
     products: "Product Management",
     purchase: "Purchase / Container Orders",
     history: "Order History",
-    pdf: "PDF Customer Split",
     users: "User Management",
   },
   auth: {
@@ -359,7 +361,11 @@ const en = {
     deleting: "Deleting...",
   },
   pdf: {
-    title: "PDF Customer ID Split",
+    brand: "PDF Split",
+    siteTitle: "PDF Customer Split",
+    siteSubtitle: "Split PDFs by the customer id printed at the bottom-left of each page",
+    siteLoginHint: "Sign in to use PDF classification",
+    title: "Upload · Classify",
     hint: "Upload a multi-page PDF. Pages are grouped by the customer id in the bottom-left corner into one PDF per id (ZIP download).",
     fileLabel: "PDF file",
     process: "Classify",
