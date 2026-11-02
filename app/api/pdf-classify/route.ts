@@ -44,23 +44,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const suffixRaw = formData.get("suffix");
+    const filenameSuffix =
+      typeof suffixRaw === "string" ? suffixRaw : "";
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const result = await classifyAndZipPdf(
       new Uint8Array(buffer),
       file.name || "document.pdf",
+      filenameSuffix,
     );
 
     const summary = {
       pageCount: result.classifications.length,
-      groupCount: Object.keys(result.groups).length,
+      groupCount: Object.keys(result.outputFiles).length,
       unknownPageCount: result.unknownPageCount,
+      filenameSuffix: result.filenameSuffix,
       groups: Object.fromEntries(
-        Object.entries(result.groups).map(([id, pages]) => [
-          id,
+        Object.entries(result.outputFiles).map(([filename, pages]) => [
+          filename,
           {
             pageCount: pages.length,
             // 1-based page numbers for UI
             pages: pages.map((i) => i + 1),
+            filename: `${filename}.pdf`,
           },
         ]),
       ),

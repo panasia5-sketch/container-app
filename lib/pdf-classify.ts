@@ -21,6 +21,17 @@ import {
   loadPdfDocument,
   type PDFPageProxy,
 } from "@/lib/pdfjs-node";
+import {
+  buildOutputBasename,
+  sanitizeFilenameId,
+  sanitizeFilenameSuffix,
+} from "@/lib/pdf-filename";
+
+export {
+  buildOutputBasename,
+  sanitizeFilenameId,
+  sanitizeFilenameSuffix,
+} from "@/lib/pdf-filename";
 
 type TextItem = {
   str: string;
@@ -54,9 +65,13 @@ export type PageClassification = {
 export type ClassifyResult = {
   classifications: PageClassification[];
   groups: Record<string, number[]>;
+  /** Output basename (no .pdf) → source page indexes. */
+  outputFiles: Record<string, number[]>;
   unknownPageCount: number;
   zipBytes: Uint8Array;
   zipFilename: string;
+  /** Sanitized suffix applied to every `{customerCode}{suffix}.pdf`. */
+  filenameSuffix: string;
 };
 
 function isTextItem(item: unknown): item is TextItem {
@@ -68,11 +83,6 @@ function isTextItem(item: unknown): item is TextItem {
     typeof candidate.width === "number" &&
     typeof candidate.height === "number"
   );
-}
-
-export function sanitizeFilenameId(id: string): string {
-  const cleaned = id.replace(/[^\w.-]+/g, "_").replace(/^\.+/, "");
-  return cleaned.slice(0, 120) || UNKNOWN_BUCKET;
 }
 
 export function pickCustomerIdFromText(raw: string): string | null {
@@ -288,14 +298,26 @@ function groupByCustomerId(
 export async function classifyAndZipPdf(
   pdfBytes: Uint8Array,
   originalFilename = "document.pdf",
+  filenameSuffix = "",
 ): Promise<ClassifyResult> {
+  const safeSuffix = sanitizeFilenameSuffix(filenameSuffix);
   const classifications = await classifyPages(pdfBytes);
   const groups = groupByCustomerId(classifications);
   const pdfs = await buildGroupedPdfs(pdfBytes, groups);
 
+  const outputFiles: Record<string, number[]> = {};
   const zip = new JSZip();
   for (const [customerId, bytes] of Object.entries(pdfs)) {
-    zip.file(`${customerId}.pdf`, bytes);
+    const basename = buildOutputBasename(customerId, safeSuffix);
+    // Avoid clobbering if two codes somehow sanitize to the same basename.
+    let unique = basename;
+    let n = 2;
+    while (outputFiles[unique]) {
+      unique = `${basename}_${n}`;
+      n += 1;
+    }
+    outputFiles[unique] = groups[customerId] ?? [];
+    zip.file(`${unique}.pdf`, bytes);
   }
 
   const zipBytes = await zip.generateAsync({
@@ -309,9 +331,11 @@ export async function classifyAndZipPdf(
   return {
     classifications,
     groups,
+    outputFiles,
     unknownPageCount,
     zipBytes,
     zipFilename: `${base}-by-customer.zip`,
+    filenameSuffix: safeSuffix,
   };
 }
 

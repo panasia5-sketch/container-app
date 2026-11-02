@@ -1,17 +1,20 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { buildOutputBasename } from "@/lib/pdf-filename";
 
 type GroupSummary = {
   pageCount: number;
   pages: number[];
+  filename?: string;
 };
 
 type ClassifySummary = {
   pageCount: number;
   groupCount: number;
   unknownPageCount: number;
+  filenameSuffix?: string;
   groups: Record<string, GroupSummary>;
   classifications: Array<{
     page: number;
@@ -24,11 +27,17 @@ export default function PdfClassifyPanel() {
   const { t } = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [suffix, setSuffix] = useState("");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<ClassifySummary | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState("classified-by-customer.zip");
+
+  const previewName = useMemo(
+    () => `${buildOutputBasename("CUST-1001", suffix)}.pdf`,
+    [suffix],
+  );
 
   const resetResult = () => {
     setError(null);
@@ -56,6 +65,7 @@ export default function PdfClassifyPanel() {
     try {
       const body = new FormData();
       body.append("file", file);
+      body.append("suffix", suffix);
 
       const res = await fetch("/api/pdf-classify", {
         method: "POST",
@@ -101,8 +111,10 @@ export default function PdfClassifyPanel() {
 
   const groupEntries = summary
     ? Object.entries(summary.groups).sort(([a], [b]) => {
-        if (a === "unknown") return 1;
-        if (b === "unknown") return -1;
+        const aUnknown = a.startsWith("unknown");
+        const bUnknown = b.startsWith("unknown");
+        if (aUnknown && !bUnknown) return 1;
+        if (!aUnknown && bUnknown) return -1;
         return a.localeCompare(b);
       })
     : [];
@@ -117,7 +129,7 @@ export default function PdfClassifyPanel() {
           <div>
             <label
               htmlFor="pdf-classify-file"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
+              className="mb-1.5 block text-sm font-medium text-stone-700"
             >
               {t("pdf.fileLabel")}
             </label>
@@ -130,10 +142,35 @@ export default function PdfClassifyPanel() {
               onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
             />
             {file && (
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-stone-500">
                 {file.name} ({(file.size / 1024).toFixed(1)} KB)
               </p>
             )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="pdf-classify-suffix"
+              className="mb-1.5 block text-sm font-medium text-stone-700"
+            >
+              {t("pdf.suffixLabel")}
+            </label>
+            <input
+              id="pdf-classify-suffix"
+              type="text"
+              value={suffix}
+              maxLength={80}
+              placeholder={t("pdf.suffixPlaceholder")}
+              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm text-stone-900 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+              onChange={(e) => {
+                resetResult();
+                setSuffix(e.target.value);
+              }}
+            />
+            <p className="mt-1.5 text-xs text-stone-500">{t("pdf.suffixHint")}</p>
+            <p className="mt-1 font-mono text-xs text-teal-800">
+              {t("pdf.suffixPreview", { example: previewName })}
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -198,25 +235,29 @@ export default function PdfClassifyPanel() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {groupEntries.map(([id, group]) => (
-                  <tr key={id}>
-                    <td className="px-4 py-2.5 font-medium text-stone-900">
-                      {id === "unknown" ? (
-                        <span className="text-amber-700">
-                          unknown.pdf ({t("pdf.unknownLabel")})
-                        </span>
-                      ) : (
-                        `${id}.pdf`
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-stone-700">
-                      {group.pageCount}
-                    </td>
-                    <td className="px-4 py-2.5 text-stone-600">
-                      {group.pages.join(", ")}
-                    </td>
-                  </tr>
-                ))}
+                {groupEntries.map(([id, group]) => {
+                  const filename = group.filename ?? `${id}.pdf`;
+                  const isUnknown = id.startsWith("unknown");
+                  return (
+                    <tr key={id}>
+                      <td className="px-4 py-2.5 font-medium text-stone-900">
+                        {isUnknown ? (
+                          <span className="text-amber-700">
+                            {filename} ({t("pdf.unknownLabel")})
+                          </span>
+                        ) : (
+                          filename
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-stone-700">
+                        {group.pageCount}
+                      </td>
+                      <td className="px-4 py-2.5 text-stone-600">
+                        {group.pages.join(", ")}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
