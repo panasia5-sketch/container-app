@@ -7,7 +7,15 @@ import LanguageSwitcher from "./LanguageSwitcher";
 
 type AuthMode = "signIn" | "signUp";
 
-export default function LoginForm() {
+export default function LoginForm({
+  title,
+  subtitle,
+}: {
+  /** Optional brand title — defaults to container order app title. */
+  title?: string;
+  /** Optional subtitle under the title (overrides auth.subtitle / signUpSubtitle when set). */
+  subtitle?: string;
+} = {}) {
   const { t } = useLanguage();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<AuthMode>("signIn");
@@ -19,6 +27,9 @@ export default function LoginForm() {
   const [submitting, setSubmitting] = useState(false);
 
   const isSignUp = mode === "signUp";
+  const heading = title ?? t("app.title");
+  const subheading =
+    subtitle ?? (isSignUp ? t("auth.signUpSubtitle") : t("auth.subtitle"));
 
   const switchMode = (nextMode: AuthMode) => {
     setMode(nextMode);
@@ -74,11 +85,9 @@ export default function LoginForm() {
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="text-center">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {t("app.title")}
+              {heading}
             </h1>
-            <p className="mt-2 text-sm text-slate-500">
-              {isSignUp ? t("auth.signUpSubtitle") : t("auth.subtitle")}
-            </p>
+            <p className="mt-2 text-sm text-slate-500">{subheading}</p>
           </div>
 
           <div className="mt-6 flex rounded-lg border border-slate-200 bg-slate-50 p-1">

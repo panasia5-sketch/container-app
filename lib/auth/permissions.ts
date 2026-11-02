@@ -13,9 +13,9 @@ export function isUserRole(value: string): value is UserRole {
 
 /** Menu access by role — add tabs here when new menus are introduced. */
 export const TAB_ACCESS: Record<UserRole, TabId[]> = {
-  admin: ["products", "purchase", "history", "pdf", "users"],
-  manager: ["products", "purchase", "history", "pdf"],
-  viewer: ["products", "history", "pdf"],
+  admin: ["products", "purchase", "history", "users"],
+  manager: ["products", "purchase", "history"],
+  viewer: ["products", "history"],
 };
 
 /** Fine-grained actions for future UI/API guards (buttons, forms, etc.). */

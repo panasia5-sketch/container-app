@@ -20,7 +20,6 @@ import { useAuth, usePermissions } from "@/lib/auth/AuthProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import LanguageSwitcher from "./LanguageSwitcher";
 import UserManagementTab from "./UserManagementTab";
-import PdfClassifyTab from "./PdfClassifyTab";
 import type {
   Product,
   PurchaseMaster,
@@ -1418,7 +1417,6 @@ export default function ContainerOrderApp() {
             onRefresh={fetchPurchaseOrders}
           />
         )}
-        {activeTab === "pdf" && canAccessTab("pdf") && <PdfClassifyTab />}
         {activeTab === "users" && canAccessTab("users") && (
           <UserManagementTab />
         )}

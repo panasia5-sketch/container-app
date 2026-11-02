@@ -9,8 +9,9 @@
 - **구매/컨테이너 주문 등록** — PO 마스터 저장 후 엑셀로 품목 일괄 등록
 - **구매 내역 조회** — PO별 품목 상세, PO 삭제
 - **한/영 UI** — 화면 우측 상단에서 언어 전환
-- **PDF 고객 분류** — 다중 페이지 PDF를 페이지 좌측 하단 고객 ID 기준으로 분리·ZIP 다운로드
 - **로그인** — Supabase Auth 이메일/비밀번호 로그인 (미로그인 시 접근 불가)
+
+별도 제품 표면: **[PDF 고객 분류](/pdf)** (`/pdf`) — 컨테이너 주문 앱 메뉴와 분리된 독립 화면.
 
 ## 기술 스택
 
@@ -104,18 +105,24 @@ npm run dev
 
 브라우저에서 [http://localhost:3000](http://localhost:3000) 을 엽니다.
 
-## PDF 고객 ID 분류
+## PDF 고객 ID 분류 (독립 사이트)
 
-1. 로그인 후 **PDF 고객 분류** 탭에서 PDF를 업로드합니다.
-2. 서버가 각 페이지 **좌측 하단 영역**(가로 약 42% · 세로 하단 약 14%)에서 고객 ID를 읽습니다.
+컨테이너 주문 관리와 **분리된** 제품 표면입니다. 북마크용 URL:
+
+```text
+http://localhost:3000/pdf
+```
+
+1. `/pdf`로 접속해 로그인합니다 (주문 앱과 동일 Supabase Auth).
+2. PDF를 업로드하면 서버가 각 페이지 **좌측 하단 영역**(가로 약 42% · 세로 하단 약 14%)에서 고객 ID를 읽습니다.
 3. 임베디드 텍스트를 우선 사용하고, 없으면 해당 영역을 렌더링해 OCR(Tesseract)합니다.
 4. 같은 고객 ID 페이지는 `{customerId}.pdf`로 묶이고, ID를 못 찾은 페이지는 `unknown.pdf`로 들어가 ZIP으로 제공됩니다.
 
 **고객 ID 형식 가정:** 영문·숫자와 `._-` 조합(2–64자). 짧은 페이지 번호·날짜·공통 라벨(page/고객 등)은 무시합니다.
 
-**의존성 참고:** `pdf-lib`, `unpdf`, `@napi-rs/canvas`, `tesseract.js`, `jszip`. Node.js 런타임 API 라우트(`/api/pdf-classify`)에서 처리합니다. OCR은 영문 숫자 whitelist를 사용합니다.
+**의존성 참고:** `pdf-lib`, `unpdf`, `@napi-rs/canvas`, `tesseract.js`, `jszip`. API: `POST /api/pdf-classify`.
 
-**Vercel/서버리스:** PDF 파싱은 `unpdf`(worker 인라인)를 사용합니다. `pdfjs-dist`의 `pdf.worker.mjs` 파일에 의존하지 않으므로 `/var/task`에서 fake-worker 모듈 누락 오류가 나지 않습니다.
+**Vercel/서버리스:** PDF 파싱은 `unpdf`(worker 인라인)를 사용합니다.
 
 ## 엑셀 업로드 형식
 
@@ -142,14 +149,16 @@ npm run dev
 
 ```
 app/
-  components/ContainerOrderApp.tsx   # 메인 UI
-  page.tsx
+  page.tsx                           # 컨테이너 주문 관리 (/)
+  pdf/page.tsx                       # PDF 고객 분류 독립 사이트 (/pdf)
+  components/ContainerOrderApp.tsx   # 주문 앱 UI
+  components/PdfClassifyApp.tsx      # PDF 분류 독립 셸
+  api/pdf-classify/route.ts          # 분류 API
 lib/
   supabase.ts                        # Supabase 클라이언트
+  pdf-classify.ts / pdfjs-node.ts    # PDF 분류 (unpdf)
   excel-purchase.ts                  # 구매 엑셀 파싱
-  excel-product-export.ts            # 제품 조회 결과 export
-  product-sync.ts                    # products / purchase_record 동기화
-  product-lookup.ts                  # 최근 PO, 제품별 구매 내역
+  ...
 supabase/
   schema.sql
   migrations/
