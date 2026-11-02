@@ -56,6 +56,8 @@ Supabase 대시보드 → **Project Settings → API**에서 값을 입력합니
 |------|------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public key |
+| `RESEND_API_KEY` | (PDF `/pdf` 발송) Resend API key |
+| `RESEND_FROM_EMAIL` | (PDF 발송) 검증된 발신 주소, 예: `PDF Split <noreply@domain.com>` |
 
 ### 4. Supabase DB 스키마 적용
 
@@ -72,6 +74,7 @@ Supabase 대시보드 → **SQL Editor**에서 순서대로 실행합니다.
 3. SQL Editor에서 `supabase/migrations/add_auth_rls.sql` 실행 — **로그인한 사용자만** DB 접근 허용
 4. SQL Editor에서 `supabase/migrations/add_user_profiles.sql` 실행 — **역할(권한) 테이블** 생성
 5. SQL Editor에서 `supabase/migrations/add_admin_user_management.sql` 실행 — **관리자 계정 관리** RLS
+6. (PDF 고객 이메일) SQL Editor에서 `supabase/migrations/add_customer_emails.sql` 실행
 
 > RLS 마이그레이션 전에는 누구나 데이터 접근 가능합니다. 배포 전 반드시 실행하세요.
 
@@ -120,9 +123,15 @@ http://localhost:3000/pdf
 
 **고객 ID 형식 가정:** 영문·숫자와 `._-` 조합(2–64자). 짧은 페이지 번호·날짜·공통 라벨(page/고객 등)은 무시합니다.
 
-**의존성 참고:** `pdf-lib`, `unpdf`, `@napi-rs/canvas`, `tesseract.js`, `jszip`. API: `POST /api/pdf-classify`.
+**의존성 참고:** `pdf-lib`, `unpdf`, `@napi-rs/canvas`, `tesseract.js`, `jszip`, `resend`. API: `POST /api/pdf-classify`, `POST /api/pdf-send`.
 
-**Vercel/서버리스:** PDF 파싱은 `unpdf`(worker 인라인)를 사용합니다.
+**고객 이메일·발송**
+1. Supabase에서 `add_customer_emails.sql` 실행
+2. `.env.local`에 `RESEND_API_KEY`, `RESEND_FROM_EMAIL` 설정 (Resend에서 도메인/발신자 검증)
+3. `/pdf`에서 고객 코드·이메일 등록 후 분류 → **고객에게 PDF 발송**
+4. 권한: `pdf.emails.manage` / `pdf.emails.send` — admin·manager (viewer는 분류·다운로드만)
+
+**Vercel/서버리스:** PDF 파싱은 `unpdf`(worker 인라인)를 사용합니다. Vercel 환경 변수에도 Resend 키를 넣으세요.
 
 ## 엑셀 업로드 형식
 
@@ -174,6 +183,8 @@ GitHub 연동 후 Vercel에서 Import하면 됩니다. 자세한 단계는 아�
 |------|-------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `RESEND_API_KEY` | Resend API key (PDF email) |
+| `RESEND_FROM_EMAIL` | Verified from address |
 
 > `NEXT_PUBLIC_` 변수는 브라우저에 노출됩니다. Supabase **anon key**는 클라이언트용이며, RLS 정책으로 접근을 제한하세요.
 
