@@ -47,3 +47,11 @@ export function buildOutputBasename(
   const combined = `${code}${FILENAME_CODE_SUFFIX_GAP}${safeSuffix}`;
   return combined.slice(0, 180) || code;
 }
+
+/** Recover customer code from an output basename (with or without suffix gap). */
+export function customerCodeFromOutputBasename(basename: string): string {
+  const name = basename.replace(/\.pdf$/i, "");
+  const gapIdx = name.indexOf(FILENAME_CODE_SUFFIX_GAP);
+  if (gapIdx === -1) return name;
+  return name.slice(0, gapIdx);
+}

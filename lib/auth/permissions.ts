@@ -30,6 +30,8 @@ export type AppAction =
   | "history.read"
   | "history.delete"
   | "pdf.classify"
+  | "pdf.emails.manage"
+  | "pdf.emails.send"
   | "users.read"
   | "users.manage";
 
@@ -45,6 +47,8 @@ export const ACTION_ACCESS: Record<UserRole, AppAction[]> = {
     "history.read",
     "history.delete",
     "pdf.classify",
+    "pdf.emails.manage",
+    "pdf.emails.send",
     "users.read",
     "users.manage",
   ],
@@ -59,6 +63,8 @@ export const ACTION_ACCESS: Record<UserRole, AppAction[]> = {
     "history.read",
     "history.delete",
     "pdf.classify",
+    "pdf.emails.manage",
+    "pdf.emails.send",
   ],
   viewer: ["products.read", "products.export", "history.read", "pdf.classify"],
 };
